@@ -1,0 +1,22 @@
+[package]
+name = "quickcheck-derive"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+proc-macro = true
+
+[build-dependencies]
+glob = "0.3"
+
+[dependencies]
+heck = "0.4"
+proc-macro2 = "1.0"
+thiserror = "1.0"
+quote = "1.0"
+syn = { version = "1.0", features = ["full"] }
+
+[dev-dependencies]
+quickcheck = "1.0"
+trybuild = { version = "1.0", features = ["diff"] }
