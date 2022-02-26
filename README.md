@@ -1,5 +1,7 @@
 # Quickcheck Derive
 
+Procedural macro for deriving Quickcheck's Arbitrary trait.
+
 ## Usage
 
 ```rust
