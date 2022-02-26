@@ -1,5 +1,5 @@
 use self::{enum_::derive_arbitrary_for_enum, struct_::derive_arbitrary_for_struct};
-use proc_macro2::{Ident, Span};
+use proc_macro2::Ident;
 use quote::{format_ident, ToTokens};
 use syn::{
     parse_macro_input, parse_quote, Attribute, Data, DataEnum, DataStruct, DeriveInput, Expr,
@@ -74,17 +74,17 @@ fn gen_generator(field: &Field) -> Result<ExprCall, Error> {
             x.path
                 .segments
                 .first()
-                .map(|path| &path.ident)
-                .map(|x| *x == "arbitrary")
+                .map(|x| &x.ident == "arbitrary")
                 .unwrap_or_default()
         })
         .filter(|&x| x.parse_args::<ExprAssign>().is_ok())
-        .map(|x| extract_generator_ident(x))
+        .map(extract_generator_ident)
         .next()
         .transpose()?
         .flatten()
-        .unwrap_or_else(|| Ident::new("gen", Span::call_site()));
-    Ok(parse_quote! {#generator(g)})
+        .map(|x| parse_quote! {#x(g)})
+        .unwrap_or_else(|| parse_quote! {gen(g)});
+    Ok(generator)
 }
 
 fn extract_generator_ident(attr: &Attribute) -> Result<Option<Ident>, Error> {
