@@ -141,7 +141,7 @@ mod enum_ {
             .variants
             .iter()
             .map(|x| gen_factory(&name, x))
-            .collect();
+            .collect::<Result<_, _>>()?;
         let factories_list: Vec<_> = { factories.iter().map(|x| &x.sig.ident) }.collect();
         let func: ItemFn = parse_quote! {
             fn arbitrary(g: &mut ::quickcheck::Gen) -> Self {
@@ -159,17 +159,18 @@ mod enum_ {
         Ok(inst)
     }
 
-    fn gen_factory(enum_name: &Ident, variant: &Variant) -> ItemFn {
+    fn gen_factory(enum_name: &Ident, variant: &Variant) -> Result<ItemFn, Error> {
         let variant_name = &variant.ident;
         let fn_name = format_ident!("gen_{}", AsSnakeCase(variant_name.to_string()).to_string());
         let fields = &variant.fields;
         let name: Path = parse_quote! { #enum_name::#variant_name };
-        let ctor = gen_ctor(&name, fields).unwrap();
-        parse_quote! {
+        let ctor = gen_ctor(&name, fields)?;
+        let f = parse_quote! {
             fn #fn_name(g: &mut ::quickcheck::Gen) -> #enum_name {
                 #ctor
             }
-        }
+        };
+        Ok(f)
     }
 }
 
