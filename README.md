@@ -29,5 +29,5 @@ fn gen_age(g: &mut quickcheck::Gen) -> u8 {
 ## Install
 
 ```toml
-quickcheck-derive = { git = "https://github.com/kafji/quickcheck-derive", tag = "v0.2.1" }
+quickcheck-derive = { git = "https://github.com/kafji/quickcheck-derive", tag = "v0.2.2" }
 ```
