@@ -16,9 +16,10 @@ struct Person {
 }
 
 fn gen_age(g: &mut quickcheck::Gen) -> u8 {
+    use quickcheck::Arbitrary;
     loop {
         let age = u8::arbitrary(g);
-        if age > 16 {
+        if age > 20 {
             break age;
         }
     }
@@ -28,5 +29,5 @@ fn gen_age(g: &mut quickcheck::Gen) -> u8 {
 ## Install
 
 ```toml
-quickcheck-derive = { git = "https://github.com/kafji/quickcheck-derive", tag = "v0.1.0" }
+quickcheck-derive = { git = "https://github.com/kafji/quickcheck-derive", tag = "v0.2.0" }
 ```
