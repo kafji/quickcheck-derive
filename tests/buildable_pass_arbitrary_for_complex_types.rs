@@ -104,8 +104,8 @@ pub struct DmarcReport {
 }
 
 fn main() {
-    fn clone_equal_with_origin(report: DmarcReport) -> bool {
+    fn prop_clone_is_equal_with_its_origin(report: DmarcReport) -> bool {
         report.clone() == report
     }
-    quickcheck(clone_equal_with_origin as fn(DmarcReport) -> bool)
+    quickcheck(prop_clone_is_equal_with_its_origin as fn(DmarcReport) -> bool)
 }

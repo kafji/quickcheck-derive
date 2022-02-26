@@ -5,8 +5,8 @@ use quickcheck_derive::Arbitrary;
 struct Stone;
 
 fn main() {
-    fn clone_equal_with_origin(person: Stone) -> bool {
+    fn prop_clone_is_equal_with_its_origin(person: Stone) -> bool {
         person.clone() == person
     }
-    quickcheck(clone_equal_with_origin as fn(Stone) -> bool)
+    quickcheck(prop_clone_is_equal_with_its_origin as fn(Stone) -> bool)
 }

@@ -9,8 +9,8 @@ enum Vehicle {
 }
 
 fn main() {
-    fn clone_equal_with_origin(person: Vehicle) -> bool {
+    fn prop_clone_is_equal_with_its_origin(person: Vehicle) -> bool {
         person.clone() == person
     }
-    quickcheck(clone_equal_with_origin as fn(Vehicle) -> bool)
+    quickcheck(prop_clone_is_equal_with_its_origin as fn(Vehicle) -> bool)
 }

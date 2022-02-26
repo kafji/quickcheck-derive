@@ -8,8 +8,8 @@ struct Person {
 }
 
 fn main() {
-    fn clone_equal_with_origin(person: Person) -> bool {
+    fn prop_clone_is_equal_with_its_origin(person: Person) -> bool {
         person.clone() == person
     }
-    quickcheck(clone_equal_with_origin as fn(Person) -> bool)
+    quickcheck(prop_clone_is_equal_with_its_origin as fn(Person) -> bool)
 }

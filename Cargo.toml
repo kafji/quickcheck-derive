@@ -1,6 +1,6 @@
 [package]
 name = "quickcheck-derive"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 publish = false
 
@@ -15,7 +15,7 @@ heck = "0.4"
 proc-macro2 = "1.0"
 thiserror = "1.0"
 quote = "1.0"
-syn = { version = "1.0", features = ["full"] }
+syn = { version = "1.0", features = ["full", "extra-traits"] }
 
 [dev-dependencies]
 quickcheck = "1.0"

@@ -1,13 +1,13 @@
 use self::{enum_::derive_arbitrary_for_enum, struct_::derive_arbitrary_for_struct};
-use proc_macro2::Ident;
+use proc_macro2::{Ident, Span};
 use quote::{format_ident, ToTokens};
 use syn::{
-    parse_macro_input, parse_quote, Data, DataEnum, DataStruct, DeriveInput, Expr, ExprCall,
-    Fields, ItemFn, ItemImpl, Variant,
+    parse_macro_input, parse_quote, Attribute, Data, DataEnum, DataStruct, DeriveInput, Expr,
+    ExprAssign, ExprCall, ExprLit, ExprPath, Field, Fields, ItemFn, ItemImpl, Lit, Path, Variant,
 };
 use thiserror::Error;
 
-#[proc_macro_derive(Arbitrary)]
+#[proc_macro_derive(Arbitrary, attributes(arbitrary))]
 pub fn derive_arbitrary(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input: DeriveInput = parse_macro_input!(input);
     let derive = match input.data {
@@ -30,16 +30,18 @@ fn gen_arbitrary_instance(name: &Ident, func: &ItemFn) -> ItemImpl {
     }
 }
 
-fn gen_ctor(name: &Ident, fields: &Fields) -> Expr {
-    match fields {
+fn gen_ctor(name: &Path, fields: &Fields) -> Result<Expr, Error> {
+    let ctor = match fields {
         Fields::Named(fs) => {
             let (fields_names, fields_generators): (Vec<_>, Vec<ExprCall>) = fs
                 .named
                 .iter()
-                .map(|x| {
-                    let name = x.ident.as_ref();
-                    (name, parse_quote! {gen(g)})
+                .map(|field| {
+                    let generator = gen_generator(field)?;
+                    Result::<_, Error>::Ok((field.ident.as_ref(), generator))
                 })
+                .collect::<Result<Vec<_>, _>>()?
+                .into_iter()
                 .unzip();
             parse_quote! {
                 #name {
@@ -51,10 +53,8 @@ fn gen_ctor(name: &Ident, fields: &Fields) -> Expr {
             let fields_generators: Vec<ExprCall> = fs
                 .unnamed
                 .iter()
-                .map(|_| {
-                    parse_quote! {gen(g)}
-                })
-                .collect();
+                .map(|field| gen_generator(field))
+                .collect::<Result<_, _>>()?;
             parse_quote! {
                 #name(#(#fields_generators,)*)
             }
@@ -62,7 +62,48 @@ fn gen_ctor(name: &Ident, fields: &Fields) -> Expr {
         Fields::Unit => parse_quote! {
             #name
         },
-    }
+    };
+    Ok(ctor)
+}
+
+fn gen_generator(field: &Field) -> Result<ExprCall, Error> {
+    let generator = field
+        .attrs
+        .iter()
+        .filter(|&x| {
+            x.path
+                .segments
+                .first()
+                .map(|path| &path.ident)
+                .map(|x| *x == "arbitrary")
+                .unwrap_or_default()
+        })
+        .filter(|&x| x.parse_args::<ExprAssign>().is_ok())
+        .map(|x| extract_generator_ident(x))
+        .next()
+        .transpose()?
+        .flatten()
+        .unwrap_or_else(|| Ident::new("gen", Span::call_site()));
+    Ok(parse_quote! {#generator(g)})
+}
+
+fn extract_generator_ident(attr: &Attribute) -> Result<Option<Ident>, Error> {
+    let expr = attr.parse_args::<ExprAssign>()?;
+    let ident =
+        if matches!(*expr.left, Expr::Path(ExprPath{path,..}) if path.is_ident("generator")) {
+            if let Expr::Lit(ExprLit {
+                lit: Lit::Str(x), ..
+            }) = *expr.right
+            {
+                Some(x.value())
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+        .map(|x| format_ident!("{}", x));
+    Ok(ident)
 }
 
 mod struct_ {
@@ -72,7 +113,8 @@ mod struct_ {
         name: &Ident,
         data: &DataStruct,
     ) -> Result<ItemImpl, Error> {
-        let ctor = gen_ctor(name, &data.fields);
+        let path: Path = parse_quote! {#name};
+        let ctor = gen_ctor(&path, &data.fields)?;
         let func: ItemFn = parse_quote! {
             fn arbitrary(g: &mut ::quickcheck::Gen) -> Self {
                 use ::quickcheck::Arbitrary;
@@ -120,45 +162,13 @@ mod enum_ {
     fn gen_factory(enum_name: &Ident, variant: &Variant) -> ItemFn {
         let variant_name = &variant.ident;
         let fn_name = format_ident!("gen_{}", AsSnakeCase(variant_name.to_string()).to_string());
-        match &variant.fields {
-            Fields::Named(fs) => {
-                let (fields_names, fields_generators): (Vec<_>, Vec<ExprCall>) = fs
-                    .named
-                    .iter()
-                    .map(|x| {
-                        let name = x.ident.as_ref();
-                        let ty = &x.ty;
-                        (name, parse_quote! {#ty::arbitrary(g)})
-                    })
-                    .unzip();
-                parse_quote! {
-                    fn #fn_name(g: &mut ::quickcheck::Gen) -> #enum_name {
-                        #enum_name::#variant_name {
-                            #(#fields_names: #fields_generators,)*
-                        }
-                    }
-                }
+        let fields = &variant.fields;
+        let name: Path = parse_quote! { #enum_name::#variant_name };
+        let ctor = gen_ctor(&name, fields).unwrap();
+        parse_quote! {
+            fn #fn_name(g: &mut ::quickcheck::Gen) -> #enum_name {
+                #ctor
             }
-            Fields::Unnamed(fs) => {
-                let fields_generators: Vec<ExprCall> = fs
-                    .unnamed
-                    .iter()
-                    .map(|x| {
-                        let ty = &x.ty;
-                        parse_quote! {#ty::arbitrary(g)}
-                    })
-                    .collect();
-                parse_quote! {
-                    fn #fn_name(g: &mut ::quickcheck::Gen) -> #enum_name {
-                        #enum_name::#variant_name(#(#fields_generators,)*)
-                    }
-                }
-            }
-            Fields::Unit => parse_quote! {
-                fn #fn_name(g: &mut ::quickcheck::Gen) -> #enum_name {
-                    #enum_name::#variant_name
-                }
-            },
         }
     }
 }
